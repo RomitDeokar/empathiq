@@ -1,42 +1,48 @@
 """
 EmpathIQ — FastAPI Backend
-Main application entry point
+Main application — all bugs fixed, demo mode removed
 """
 import json
 import sys
 import os
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 from typing import List, Optional
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
+# Ensure the backend directory is in the path for local imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from database import init_db, get_db, Customer, Interaction, StrategyLog
 from schemas import (
     AnalyzeRequest, AnalyzeResponse,
     InteractionOut, CustomerOut,
-    SimulateRequest, CreateCustomerRequest
+    CreateCustomerRequest, MarkResolvedRequest,
 )
 from models.emotion_detector import detect_emotion
 from models.sentiment_scorer import get_sentiment_score
 from models.frustration_lstm import compute_frustration
 from models.strategy_engine import recommend_strategy
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-from scenarios.demo_scenarios import get_scenario, list_scenarios
-
 app = FastAPI(
     title="EmpathIQ API",
     description="Emotional Context Layer for Customer Support",
-    version="1.0.0"
+    version="2.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,9 +55,11 @@ def startup():
     print("[EmpathIQ] Database initialized.")
 
 
+# ─── Health ──────────────────────────────────────────────────────────────────
+
 @app.get("/")
 def root():
-    return {"message": "EmpathIQ API is running", "version": "1.0.0"}
+    return {"message": "EmpathIQ API is running", "version": "2.0.0"}
 
 
 @app.get("/health")
@@ -61,18 +69,24 @@ def health():
 
 # ─── Customer Endpoints ──────────────────────────────────────────────────────
 
-@app.post("/customers", response_model=CustomerOut)
+@app.post("/customers", response_model=CustomerOut, status_code=status.HTTP_201_CREATED)
 def create_customer(req: CreateCustomerRequest, db: Session = Depends(get_db)):
-    existing = db.query(Customer).filter(Customer.id == req.id).first()
-    if existing:
-        return _customer_to_out(existing, db)
-    
+    # Check for duplicate email
+    existing_email = db.query(Customer).filter(Customer.email == req.email).first()
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A customer with email '{req.email}' already exists.",
+        )
+
     customer = Customer(
-        id=req.id,
+        id=str(uuid.uuid4()),
         name=req.name,
         email=req.email,
-        plan_tier=req.plan_tier,
-        avatar_color=req.avatar_color,
+        plan_tier=req.plan_tier or "standard",
+        avatar_color=req.avatar_color or "#5AC8FA",
+        current_frustration_score=0.0,
+        current_churn_probability=0.0,
     )
     db.add(customer)
     db.commit()
@@ -84,38 +98,55 @@ def create_customer(req: CreateCustomerRequest, db: Session = Depends(get_db)):
 def list_customers(db: Session = Depends(get_db)):
     customers = db.query(Customer).all()
     results = [_customer_to_out(c, db) for c in customers]
-    # Sort by frustration score descending
     results.sort(key=lambda x: x.current_frustration_score, reverse=True)
     return results
 
 
 @app.get("/customers/{customer_id}", response_model=CustomerOut)
 def get_customer(customer_id: str, db: Session = Depends(get_db)):
-    customer = db.query(Customer).filter(Customer.id == customer_id).first()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
+    customer = _get_customer_or_404(customer_id, db)
     return _customer_to_out(customer, db)
+
+
+@app.delete("/customers/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_customer(customer_id: str, db: Session = Depends(get_db)):
+    customer = _get_customer_or_404(customer_id, db)
+    db.delete(customer)
+    db.commit()
 
 
 @app.get("/customers/{customer_id}/history", response_model=List[InteractionOut])
 def get_history(customer_id: str, db: Session = Depends(get_db)):
+    _get_customer_or_404(customer_id, db)
     interactions = (
         db.query(Interaction)
         .filter(Interaction.customer_id == customer_id)
-        .order_by(Interaction.timestamp)
+        .order_by(Interaction.timestamp.asc())
         .all()
     )
     return interactions
+
+
+@app.patch("/interactions/{interaction_id}/resolve", response_model=InteractionOut)
+def mark_resolved(
+    interaction_id: int,
+    req: MarkResolvedRequest,
+    db: Session = Depends(get_db),
+):
+    interaction = db.query(Interaction).filter(Interaction.id == interaction_id).first()
+    if not interaction:
+        raise HTTPException(status_code=404, detail="Interaction not found")
+    interaction.resolved = req.resolved
+    db.commit()
+    db.refresh(interaction)
+    return interaction
 
 
 # ─── Core Analysis Endpoint ──────────────────────────────────────────────────
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 def analyze_message(req: AnalyzeRequest, db: Session = Depends(get_db)):
-    # Ensure customer exists
-    customer = db.query(Customer).filter(Customer.id == req.customer_id).first()
-    if not customer:
-        raise HTTPException(status_code=404, detail=f"Customer '{req.customer_id}' not found. Create customer first.")
+    customer = _get_customer_or_404(req.customer_id, db)
 
     # 1. Emotion Detection
     emotion = detect_emotion(req.message)
@@ -123,7 +154,7 @@ def analyze_message(req: AnalyzeRequest, db: Session = Depends(get_db)):
     # 2. Sentiment Scoring
     sentiment = get_sentiment_score(req.message)
 
-    # 3. Build interaction history for frustration model
+    # 3. Build interaction history features for frustration model
     past_interactions = (
         db.query(Interaction)
         .filter(Interaction.customer_id == req.customer_id)
@@ -162,7 +193,7 @@ def analyze_message(req: AnalyzeRequest, db: Session = Depends(get_db)):
         unresolved_count=frustration["unresolved_count"],
     )
 
-    # 6. Persist interaction
+    # 6. Persist interaction to DB
     new_interaction = Interaction(
         customer_id=req.customer_id,
         message=req.message,
@@ -173,17 +204,17 @@ def analyze_message(req: AnalyzeRequest, db: Session = Depends(get_db)):
         sentiment_score=sentiment["score"],
         sentiment_label=sentiment["label"],
         frustration_score=frustration["frustration_score"],
-        issue_category=req.issue_category,
-        resolved=req.resolved,
+        issue_category=req.issue_category or "general",
+        resolved=req.resolved or False,
         days_ago=0,
     )
     db.add(new_interaction)
 
-    # Update customer scores
+    # Update customer cached scores
     customer.current_frustration_score = frustration["frustration_score"]
     customer.current_churn_probability = frustration["churn_probability"]
 
-    # Log strategy
+    # Log strategy decision
     strategy_log = StrategyLog(
         customer_id=req.customer_id,
         strategy_level=strategy["level"],
@@ -205,76 +236,7 @@ def analyze_message(req: AnalyzeRequest, db: Session = Depends(get_db)):
     )
 
 
-# ─── Simulate Endpoint ────────────────────────────────────────────────────────
-
-@app.post("/simulate")
-def simulate_scenario(req: SimulateRequest, db: Session = Depends(get_db)):
-    """Load a full demo scenario into the database and return the final analysis."""
-    scenario = get_scenario(req.scenario_name)
-    if not scenario:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unknown scenario '{req.scenario_name}'. Available: {list_scenarios()}"
-        )
-
-    customer_data = scenario["customer"]
-    
-    # Upsert customer
-    customer = db.query(Customer).filter(Customer.id == customer_data["id"]).first()
-    if customer:
-        # Clear old interactions for clean demo
-        db.query(Interaction).filter(Interaction.customer_id == customer_data["id"]).delete()
-        db.query(StrategyLog).filter(StrategyLog.customer_id == customer_data["id"]).delete()
-    else:
-        customer = Customer(
-            id=customer_data["id"],
-            name=customer_data["name"],
-            email=customer_data["email"],
-            plan_tier=customer_data.get("plan_tier", "standard"),
-            avatar_color=customer_data.get("avatar_color", "#5AC8FA"),
-        )
-        db.add(customer)
-    db.commit()
-
-    # Load historical interactions
-    now = datetime.utcnow()
-    for i, interaction_data in enumerate(scenario.get("interactions", [])):
-        days_ago = interaction_data.get("days_ago", 0)
-        timestamp = now - __import__('datetime').timedelta(days=days_ago)
-        
-        interaction = Interaction(
-            customer_id=customer_data["id"],
-            timestamp=timestamp,
-            message=interaction_data["message"],
-            emotion_label=interaction_data["emotion_label"],
-            emotion_raw=interaction_data["emotion_raw"],
-            emotion_color=interaction_data["emotion_color"],
-            emotion_icon=interaction_data["emotion_icon"],
-            sentiment_score=interaction_data["sentiment_score"],
-            sentiment_label=interaction_data["sentiment_label"],
-            frustration_score=interaction_data["frustration_score"],
-            issue_category=interaction_data.get("issue_category", "general"),
-            resolved=interaction_data.get("resolved", False),
-            days_ago=days_ago,
-        )
-        db.add(interaction)
-    
-    db.commit()
-
-    # Now analyze the current message
-    analyze_req = AnalyzeRequest(
-        customer_id=customer_data["id"],
-        message=scenario["current_message"],
-        issue_category=scenario.get("interactions", [{}])[-1].get("issue_category", "general") if scenario.get("interactions") else "general",
-    )
-    
-    return analyze_message(analyze_req, db)
-
-
-@app.get("/scenarios")
-def get_scenarios():
-    return {"scenarios": list_scenarios()}
-
+# ─── Dashboard Summary ────────────────────────────────────────────────────────
 
 @app.get("/dashboard/summary")
 def dashboard_summary(db: Session = Depends(get_db)):
@@ -282,14 +244,21 @@ def dashboard_summary(db: Session = Depends(get_db)):
     results = []
     for c in customers:
         count = db.query(Interaction).filter(Interaction.customer_id == c.id).count()
+        unresolved = (
+            db.query(Interaction)
+            .filter(Interaction.customer_id == c.id, Interaction.resolved == False)
+            .count()
+        )
         results.append({
             "id": c.id,
             "name": c.name,
+            "email": c.email,
             "plan_tier": c.plan_tier,
             "avatar_color": c.avatar_color,
-            "frustration_score": c.current_frustration_score,
-            "churn_probability": c.current_churn_probability,
+            "frustration_score": round(c.current_frustration_score or 0.0, 1),
+            "churn_probability": round(c.current_churn_probability or 0.0, 3),
             "interaction_count": count,
+            "unresolved_count": unresolved,
         })
     results.sort(key=lambda x: x["frustration_score"], reverse=True)
     return {"customers": results, "total": len(results)}
@@ -297,11 +266,26 @@ def dashboard_summary(db: Session = Depends(get_db)):
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
+def _get_customer_or_404(customer_id: str, db: Session) -> Customer:
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer '{customer_id}' not found.",
+        )
+    return customer
+
+
 def _get_emotion_weight(raw_emotion: Optional[str]) -> float:
     WEIGHTS = {
-        "furious": 10.0, "angry": 8.5, "escalating": 7.5,
-        "annoyed": 6.0, "confused": 3.5, "defeated": 7.0,
-        "calm": 1.0, "neutral": 2.0,
+        "furious": 10.0,
+        "angry": 8.5,
+        "escalating": 7.5,
+        "annoyed": 6.0,
+        "confused": 3.5,
+        "defeated": 7.0,
+        "calm": 1.0,
+        "neutral": 2.0,
     }
     return WEIGHTS.get(raw_emotion or "neutral", 2.0)
 
@@ -314,8 +298,8 @@ def _customer_to_out(customer: Customer, db: Session) -> CustomerOut:
         email=customer.email,
         plan_tier=customer.plan_tier,
         avatar_color=customer.avatar_color,
-        current_frustration_score=customer.current_frustration_score,
-        current_churn_probability=customer.current_churn_probability,
+        current_frustration_score=round(customer.current_frustration_score or 0.0, 1),
+        current_churn_probability=round(customer.current_churn_probability or 0.0, 3),
         interaction_count=count,
     )
 

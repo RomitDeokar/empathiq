@@ -1,23 +1,23 @@
 import React from 'react'
-import clsx from 'clsx'
 
-export function EmotionTag({ emotion, label, color, icon, size = 'sm' }) {
-  const sizeClasses = {
-    xs: 'text-xs px-1.5 py-0.5 gap-0.5',
-    sm: 'text-xs px-2 py-0.5 gap-1',
-    md: 'text-sm px-2.5 py-1 gap-1',
+export function EmotionTag({ label, color = '#8E8E93', icon = '😐', size = 'sm' }) {
+  const sizeStyles = {
+    xs: { fontSize: 10, padding: '2px 6px', gap: 3 },
+    sm: { fontSize: 11, padding: '2px 7px', gap: 3 },
+    md: { fontSize: 12, padding: '3px 9px', gap: 4 },
   }
+  const s = sizeStyles[size] || sizeStyles.sm
 
   return (
     <span
-      className={clsx(
-        'inline-flex items-center rounded-full font-medium',
-        sizeClasses[size]
-      )}
+      className="inline-flex items-center rounded-full font-semibold"
       style={{
-        background: `${color}18`,
-        border: `1px solid ${color}35`,
-        color: color,
+        background: `${color}14`,
+        border: `1px solid ${color}30`,
+        color,
+        fontSize: s.fontSize,
+        padding: s.padding,
+        gap: s.gap,
       }}
     >
       <span>{icon}</span>

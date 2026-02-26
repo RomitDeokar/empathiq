@@ -3,12 +3,12 @@ import { Send, Loader2 } from 'lucide-react'
 import clsx from 'clsx'
 
 const CATEGORIES = [
-  { value: 'general', label: 'General' },
-  { value: 'billing', label: 'Billing' },
-  { value: 'technical', label: 'Technical' },
-  { value: 'product_bug', label: 'Product Bug' },
-  { value: 'account', label: 'Account' },
-  { value: 'cancellation', label: 'Cancellation' },
+  { value: 'general',      label: 'General'     },
+  { value: 'billing',      label: 'Billing'     },
+  { value: 'technical',    label: 'Technical'   },
+  { value: 'product_bug',  label: 'Bug Report'  },
+  { value: 'account',      label: 'Account'     },
+  { value: 'cancellation', label: 'Cancellation'},
 ]
 
 export function MessageInput({ onSend, analyzing, disabled }) {
@@ -16,15 +16,16 @@ export function MessageInput({ onSend, analyzing, disabled }) {
   const [category, setCategory] = useState('general')
   const textareaRef = useRef(null)
 
+  const canSend = message.trim().length > 0 && !analyzing && !disabled
+
   const handleSend = () => {
-    const trimmed = message.trim()
-    if (!trimmed || analyzing || disabled) return
-    onSend(trimmed, category)
+    if (!canSend) return
+    onSend(message.trim(), category)
     setMessage('')
-    textareaRef.current?.focus()
+    setTimeout(() => textareaRef.current?.focus(), 50)
   }
 
-  const handleKey = (e) => {
+  const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -33,69 +34,74 @@ export function MessageInput({ onSend, analyzing, disabled }) {
 
   return (
     <div
-      className="border-t p-4 space-y-3"
-      style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)' }}
+      className="flex flex-col gap-2.5 p-3 border-t"
+      style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.25)' }}
     >
-      {/* Category row */}
-      <div className="flex gap-1.5 flex-wrap">
-        {CATEGORIES.map(cat => (
-          <button
-            key={cat.value}
-            onClick={() => setCategory(cat.value)}
-            className={clsx(
-              'text-xs px-2.5 py-1 rounded-full transition-all duration-150 font-medium',
-              category === cat.value
-                ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
-                : 'bg-white/4 text-white/35 border border-white/8 hover:bg-white/8 hover:text-white/60'
-            )}
-          >
-            {cat.label}
-          </button>
-        ))}
+      {/* Category chips */}
+      <div className="flex gap-1 flex-wrap">
+        {CATEGORIES.map((cat) => {
+          const active = category === cat.value
+          return (
+            <button
+              key={cat.value}
+              type="button"
+              onClick={() => setCategory(cat.value)}
+              disabled={disabled}
+              className="text-[11px] px-2 py-0.5 rounded-full font-medium transition-all duration-100"
+              style={{
+                background: active ? 'rgba(90,200,250,0.15)' : 'rgba(255,255,255,0.04)',
+                border: active ? '1px solid rgba(90,200,250,0.35)' : '1px solid rgba(255,255,255,0.07)',
+                color: active ? '#5AC8FA' : 'rgba(255,255,255,0.3)',
+                cursor: disabled ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {cat.label}
+            </button>
+          )
+        })}
       </div>
 
-      {/* Input row */}
-      <div className="flex gap-2.5 items-end">
+      {/* Textarea + send button */}
+      <div className="flex items-end gap-2">
         <div className="flex-1 relative">
           <textarea
             ref={textareaRef}
             value={message}
-            onChange={e => setMessage(e.target.value)}
-            onKeyDown={handleKey}
-            placeholder={disabled ? "Select a customer first..." : "Type a customer message... (Enter to send)"}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
             disabled={disabled || analyzing}
+            placeholder={
+              disabled
+                ? 'Select a customer to begin…'
+                : 'Paste or type a customer message…'
+            }
             rows={2}
-            className={clsx(
-              'w-full resize-none rounded-xl px-4 py-3 text-sm text-white/85',
-              'placeholder-white/25 transition-all duration-200 outline-none',
-              'focus:ring-1 focus:ring-sky-500/40',
-              disabled ? 'opacity-40 cursor-not-allowed' : ''
-            )}
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-            }}
+            className="form-input resize-none"
+            style={{ paddingRight: '12px', minHeight: '64px' }}
           />
         </div>
+
         <button
           onClick={handleSend}
-          disabled={!message.trim() || analyzing || disabled}
+          disabled={!canSend}
           className={clsx(
-            'w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 flex-shrink-0',
-            message.trim() && !analyzing && !disabled
-              ? 'bg-sky-500 hover:bg-sky-400 text-white shadow-lg shadow-sky-500/30'
-              : 'bg-white/6 text-white/25 cursor-not-allowed'
+            'flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-150',
+            canSend
+              ? 'bg-sky-500 hover:bg-sky-400 text-white shadow-md shadow-sky-500/25 hover:scale-105 active:scale-95'
+              : 'bg-white/5 text-white/20 cursor-not-allowed'
           )}
+          title="Send (Enter)"
         >
           {analyzing
-            ? <Loader2 size={16} className="animate-spin" />
-            : <Send size={16} />
+            ? <Loader2 size={15} className="animate-spin" />
+            : <Send size={15} />
           }
         </button>
       </div>
-      <div className="text-white/20 text-xs">
-        Shift+Enter for new line · Enter to analyze
-      </div>
+
+      <p className="text-[10px] text-white/20">
+        Enter to send · Shift+Enter for new line
+      </p>
     </div>
   )
 }

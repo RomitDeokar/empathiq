@@ -1,16 +1,16 @@
 import React from 'react'
 import clsx from 'clsx'
 
-export function FrustrationBadge({ score, size = 'md' }) {
-  const getColor = (s) => {
-    if (s >= 8) return { bg: 'rgba(255,45,85,0.15)', border: 'rgba(255,45,85,0.4)', text: '#FF2D55' }
-    if (s >= 6) return { bg: 'rgba(255,107,53,0.15)', border: 'rgba(255,107,53,0.4)', text: '#FF6B35' }
-    if (s >= 4) return { bg: 'rgba(255,204,0,0.12)', border: 'rgba(255,204,0,0.35)', text: '#FFCC00' }
-    if (s >= 2) return { bg: 'rgba(90,200,250,0.1)', border: 'rgba(90,200,250,0.3)', text: '#5AC8FA' }
-    return { bg: 'rgba(52,199,89,0.1)', border: 'rgba(52,199,89,0.3)', text: '#34C759' }
+export function FrustrationBadge({ score = 0, size = 'md' }) {
+  const getStyle = (s) => {
+    if (s >= 8) return { bg: 'rgba(255,59,48,0.14)',  border: 'rgba(255,59,48,0.38)',  text: '#FF453A' }
+    if (s >= 6) return { bg: 'rgba(255,107,53,0.14)', border: 'rgba(255,107,53,0.38)', text: '#FF6B35' }
+    if (s >= 4) return { bg: 'rgba(255,214,10,0.12)', border: 'rgba(255,214,10,0.32)', text: '#FFD60A' }
+    if (s >= 2) return { bg: 'rgba(90,200,250,0.1)',  border: 'rgba(90,200,250,0.28)', text: '#5AC8FA' }
+    return        { bg: 'rgba(48,209,88,0.1)',  border: 'rgba(48,209,88,0.28)',  text: '#30D158' }
   }
 
-  const getGlyph = (s) => {
+  const getIcon = (s) => {
     if (s >= 8) return '🔥'
     if (s >= 6) return '⚡'
     if (s >= 4) return '😤'
@@ -18,24 +18,29 @@ export function FrustrationBadge({ score, size = 'md' }) {
     return '😊'
   }
 
-  const color = getColor(score)
-  const sizeClasses = {
-    sm: 'text-xs px-2 py-0.5',
-    md: 'text-sm px-2.5 py-1',
-    lg: 'text-base px-3 py-1.5',
+  const { bg, border, text } = getStyle(score)
+
+  const sizeStyles = {
+    sm: { fontSize: 11, padding: '2px 7px', gap: 3 },
+    md: { fontSize: 12, padding: '3px 9px', gap: 4 },
+    lg: { fontSize: 14, padding: '4px 11px', gap: 5 },
   }
+  const s = sizeStyles[size] || sizeStyles.md
 
   return (
     <span
-      className={clsx('inline-flex items-center gap-1 rounded-full font-semibold', sizeClasses[size])}
+      className="inline-flex items-center rounded-full font-bold tabular-nums"
       style={{
-        background: color.bg,
-        border: `1px solid ${color.border}`,
-        color: color.text,
+        background: bg,
+        border: `1px solid ${border}`,
+        color: text,
+        fontSize: s.fontSize,
+        padding: s.padding,
+        gap: s.gap,
       }}
     >
-      <span>{getGlyph(score)}</span>
-      <span>{score.toFixed(1)}</span>
+      <span>{getIcon(score)}</span>
+      <span>{typeof score === 'number' ? score.toFixed(1) : score}</span>
     </span>
   )
 }

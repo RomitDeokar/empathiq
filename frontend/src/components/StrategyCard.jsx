@@ -1,159 +1,218 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertTriangle, Zap, CheckCircle, TrendingUp, TrendingDown, Minus, User, DollarSign, ArrowUp } from 'lucide-react'
-import clsx from 'clsx'
+import { AlertTriangle, Zap, CheckCircle, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 const URGENCY_CONFIG = {
   LOW: {
-    gradient: 'linear-gradient(135deg, #0d2818 0%, #0a1f14 100%)',
-    border: 'rgba(52, 199, 89, 0.3)',
-    glow: '0 0 40px rgba(52, 199, 89, 0.12), 0 0 80px rgba(52, 199, 89, 0.05)',
-    accentColor: '#34C759',
-    headerBg: 'rgba(52, 199, 89, 0.08)',
+    gradient: 'linear-gradient(145deg, #081a0e 0%, #060f0a 100%)',
+    border: 'rgba(48, 209, 88, 0.28)',
+    glow: '0 0 50px rgba(48, 209, 88, 0.1)',
+    accent: '#30D158',
+    headerBg: 'rgba(48, 209, 88, 0.07)',
     label: 'LOW RISK',
     Icon: CheckCircle,
   },
   MODERATE: {
-    gradient: 'linear-gradient(135deg, #1e1800 0%, #161200 100%)',
-    border: 'rgba(255, 214, 10, 0.35)',
-    glow: '0 0 40px rgba(255, 214, 10, 0.12), 0 0 80px rgba(255, 214, 10, 0.05)',
-    accentColor: '#FFD60A',
-    headerBg: 'rgba(255, 214, 10, 0.08)',
+    gradient: 'linear-gradient(145deg, #1a1500 0%, #110e00 100%)',
+    border: 'rgba(255, 214, 10, 0.3)',
+    glow: '0 0 50px rgba(255, 214, 10, 0.1)',
+    accent: '#FFD60A',
+    headerBg: 'rgba(255, 214, 10, 0.07)',
     label: 'MODERATE',
     Icon: AlertTriangle,
   },
   HIGH: {
-    gradient: 'linear-gradient(135deg, #1e0e00 0%, #160a00 100%)',
-    border: 'rgba(255, 159, 10, 0.4)',
-    glow: '0 0 40px rgba(255, 159, 10, 0.18), 0 0 80px rgba(255, 159, 10, 0.08)',
-    accentColor: '#FF9F0A',
-    headerBg: 'rgba(255, 159, 10, 0.1)',
+    gradient: 'linear-gradient(145deg, #1a0d00 0%, #110800 100%)',
+    border: 'rgba(255, 159, 10, 0.35)',
+    glow: '0 0 50px rgba(255, 159, 10, 0.14)',
+    accent: '#FF9F0A',
+    headerBg: 'rgba(255, 159, 10, 0.09)',
     label: 'HIGH RISK',
     Icon: Zap,
   },
   CRITICAL: {
-    gradient: 'linear-gradient(135deg, #200a00 0%, #180600 100%)',
-    border: 'rgba(255, 107, 53, 0.45)',
-    glow: '0 0 40px rgba(255, 107, 53, 0.22), 0 0 80px rgba(255, 107, 53, 0.1)',
-    accentColor: '#FF6B35',
-    headerBg: 'rgba(255, 107, 53, 0.12)',
+    gradient: 'linear-gradient(145deg, #1c0900 0%, #120600 100%)',
+    border: 'rgba(255, 107, 53, 0.4)',
+    glow: '0 0 50px rgba(255, 107, 53, 0.18)',
+    accent: '#FF6B35',
+    headerBg: 'rgba(255, 107, 53, 0.1)',
     label: 'CRITICAL',
     Icon: AlertTriangle,
   },
   EMERGENCY: {
-    gradient: 'linear-gradient(135deg, #220010 0%, #180008 100%)',
-    border: 'rgba(255, 45, 85, 0.5)',
-    glow: '0 0 40px rgba(255, 45, 85, 0.28), 0 0 100px rgba(255, 45, 85, 0.12)',
-    accentColor: '#FF2D55',
-    headerBg: 'rgba(255, 45, 85, 0.15)',
+    gradient: 'linear-gradient(145deg, #1e0010 0%, #140008 100%)',
+    border: 'rgba(255, 55, 95, 0.45)',
+    glow: '0 0 50px rgba(255, 55, 95, 0.22), 0 0 100px rgba(255, 55, 95, 0.08)',
+    accent: '#FF375F',
+    headerBg: 'rgba(255, 55, 95, 0.12)',
     label: 'EMERGENCY',
     Icon: AlertTriangle,
   },
 }
 
-function AnimatedScore({ score, color }) {
+function AnimatedCount({ value, color, suffix = '' }) {
   const [display, setDisplay] = useState(0)
+
   useEffect(() => {
-    const start = 0
-    const end = score
-    const duration = 1000
-    const startTime = performance.now()
-    const animate = (now) => {
-      const elapsed = now - startTime
-      const progress = Math.min(elapsed / duration, 1)
-      const eased = 1 - Math.pow(1 - progress, 3)
-      setDisplay(parseFloat((start + (end - start) * eased).toFixed(1)))
-      if (progress < 1) requestAnimationFrame(animate)
+    const target = value
+    const duration = 900
+    const start = performance.now()
+
+    const tick = (now) => {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setDisplay(parseFloat((target * eased).toFixed(1)))
+      if (t < 1) requestAnimationFrame(tick)
     }
-    requestAnimationFrame(animate)
-  }, [score])
+    requestAnimationFrame(tick)
+  }, [value])
 
   return (
     <motion.span
-      key={score}
-      initial={{ scale: 0.7, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      className="text-5xl font-black tabular-nums"
-      style={{ color, textShadow: `0 0 30px ${color}66` }}
+      key={value}
+      initial={{ opacity: 0, scale: 0.75 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+      className="text-4xl font-black tabular-nums leading-none"
+      style={{ color, textShadow: `0 0 28px ${color}55` }}
     >
-      {display.toFixed(1)}
+      {display.toFixed(1)}{suffix}
     </motion.span>
   )
 }
 
-function ScoreBar({ score, color }) {
-  const pct = (score / 10) * 100
+function ScoreBar({ value, max = 10, color }) {
+  const pct = Math.min(100, (value / max) * 100)
   return (
-    <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+    <div
+      className="w-full h-1.5 rounded-full overflow-hidden"
+      style={{ background: 'rgba(255,255,255,0.06)' }}
+    >
       <motion.div
         className="h-full rounded-full"
         initial={{ width: 0 }}
         animate={{ width: `${pct}%` }}
-        transition={{ duration: 1, ease: 'easeOut' }}
-        style={{
-          background: `linear-gradient(90deg, ${color}88, ${color})`,
-          boxShadow: `0 0 10px ${color}66`,
-        }}
+        transition={{ duration: 0.85, ease: 'easeOut' }}
+        style={{ background: `linear-gradient(90deg, ${color}80, ${color})`, boxShadow: `0 0 8px ${color}60` }}
       />
     </div>
   )
 }
 
-function TrajectoryBadge({ trajectory }) {
-  const config = {
-    escalating: { Icon: TrendingUp, color: '#FF2D55', label: 'Escalating', bg: 'rgba(255,45,85,0.12)' },
-    improving: { Icon: TrendingDown, color: '#34C759', label: 'Improving', bg: 'rgba(52,199,89,0.1)' },
-    stable: { Icon: Minus, color: '#8E8E93', label: 'Stable', bg: 'rgba(142,142,147,0.1)' },
+function TrajectoryChip({ trajectory }) {
+  const map = {
+    escalating: { Icon: TrendingUp,   color: '#FF453A', label: 'Escalating' },
+    improving:  { Icon: TrendingDown, color: '#30D158', label: 'Improving'  },
+    stable:     { Icon: Minus,        color: '#8E8E93', label: 'Stable'     },
   }
-  const { Icon, color, label, bg } = config[trajectory] || config.stable
+  const cfg = map[trajectory] || map.stable
   return (
-    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: bg, border: `1px solid ${color}30` }}>
-      <Icon size={12} style={{ color }} />
-      <span className="text-xs font-medium" style={{ color }}>{label}</span>
+    <span
+      className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+      style={{ background: `${cfg.color}15`, color: cfg.color, border: `1px solid ${cfg.color}28` }}
+    >
+      <cfg.Icon size={11} />
+      {cfg.label}
+    </span>
+  )
+}
+
+function ActionList({ actions = [], color }) {
+  return (
+    <ul className="space-y-0">
+      {actions.map((action, i) => (
+        <motion.li
+          key={i}
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.25 + i * 0.07 }}
+          className="flex items-start gap-2.5 py-2 border-b border-white/[0.04] last:border-0"
+        >
+          <span
+            className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5"
+            style={{ background: `${color}18`, color, border: `1px solid ${color}35` }}
+          >
+            {i + 1}
+          </span>
+          <span className="text-[13px] text-white/75 leading-snug">{action}</span>
+        </motion.li>
+      ))}
+    </ul>
+  )
+}
+
+function FlagRow({ flags = [], color }) {
+  if (!flags.length) return null
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {flags.map((f) => (
+        <span
+          key={f}
+          className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide"
+          style={{ background: `${color}12`, color: `${color}bb`, border: `1px solid ${color}28` }}
+        >
+          {f.replace(/_/g, ' ')}
+        </span>
+      ))}
     </div>
   )
 }
 
-function ActionItem({ action, color, index }) {
+function ActionFlags({ strategy, color }) {
+  const items = [
+    { key: 'skip_greeting',  label: 'Skip Greeting', icon: '🚫' },
+    { key: 'escalate_human', label: 'Human Agent',   icon: '👤' },
+    { key: 'offer_credit',   label: 'Offer Credit',  icon: '💳' },
+    { key: 'flag_churn_risk', label: 'Churn Flag',   icon: '⚠️' },
+  ]
   return (
-    <motion.li
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.3 + index * 0.08 }}
-      className="flex items-start gap-3 py-2.5 border-b border-white/4 last:border-0"
-    >
-      <div
-        className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-bold"
-        style={{ background: `${color}20`, color, border: `1px solid ${color}40` }}
-      >
-        {index + 1}
-      </div>
-      <span className="text-sm text-white/80 leading-relaxed">{action}</span>
-    </motion.li>
+    <div className="grid grid-cols-2 gap-1.5">
+      {items.map(({ key, label, icon }) => {
+        const active = strategy?.[key]
+        return (
+          <div
+            key={key}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium"
+            style={{
+              background: active ? `${color}10` : 'rgba(255,255,255,0.025)',
+              border: `1px solid ${active ? `${color}30` : 'rgba(255,255,255,0.05)'}`,
+              color: active ? color : 'rgba(255,255,255,0.2)',
+            }}
+          >
+            <span>{icon}</span>
+            <span>{label}</span>
+            {active && <div className="w-1 h-1 rounded-full ml-auto" style={{ background: color }} />}
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
-function EmptyState() {
+function EmptyCard() {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-5 p-8 text-center">
       <div
-        className="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl"
-        style={{ background: 'rgba(90,200,250,0.06)', border: '1px solid rgba(90,200,250,0.12)' }}
+        className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
+        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
       >
         🧠
       </div>
       <div>
-        <h3 className="text-white/70 font-semibold text-lg mb-2">Awaiting Analysis</h3>
-        <p className="text-white/35 text-sm leading-relaxed max-w-xs">
-          Select a customer and send a message, or run a demo scenario to see EmpathIQ generate a live strategy card.
+        <h3 className="text-white/60 font-semibold text-base mb-1.5">Awaiting Analysis</h3>
+        <p className="text-white/30 text-xs leading-relaxed max-w-52">
+          Select a customer and send a message to generate a real-time strategy card.
         </p>
       </div>
-      <div className="flex flex-col gap-2 w-full max-w-xs">
-        {['Emotional state detection', 'Frustration history scoring', 'Response strategy generation'].map((item, i) => (
-          <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-            <div className="w-1.5 h-1.5 rounded-full bg-sky-400/50" />
-            <span className="text-xs text-white/35">{item}</span>
+      <div className="w-full max-w-56 space-y-1.5">
+        {['Emotion detection', 'Frustration scoring', 'Strategy generation'].map((label, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-white/30"
+            style={{ background: 'rgba(255,255,255,0.025)' }}
+          >
+            <div className="w-1 h-1 rounded-full bg-sky-500/50" />
+            {label}
           </div>
         ))}
       </div>
@@ -162,247 +221,191 @@ function EmptyState() {
 }
 
 export function StrategyCard({ analysis }) {
-  if (!analysis) return <EmptyState />
+  if (!analysis) return <EmptyCard />
 
   const { emotion, sentiment, frustration, strategy } = analysis
   const urgency = strategy?.urgency || 'LOW'
-  const config = URGENCY_CONFIG[urgency] || URGENCY_CONFIG.LOW
-  const { Icon, accentColor } = config
+  const cfg = URGENCY_CONFIG[urgency] || URGENCY_CONFIG.LOW
+  const { accent, Icon } = cfg
 
   return (
     <AnimatePresence mode="wait">
       <motion.div
         key={`${strategy?.id}-${frustration?.frustration_score}`}
-        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        initial={{ opacity: 0, scale: 0.97, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-        className="h-full flex flex-col rounded-2xl overflow-hidden"
+        exit={{ opacity: 0, scale: 0.97 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+        className="flex flex-col rounded-2xl overflow-hidden h-full"
         style={{
-          background: config.gradient,
-          border: `1px solid ${config.border}`,
-          boxShadow: config.glow,
+          background: cfg.gradient,
+          border: `1px solid ${cfg.border}`,
+          boxShadow: cfg.glow,
         }}
       >
-        {/* Header */}
+        {/* ── Card header ── */}
         <div
-          className="px-5 py-4 flex items-center justify-between border-b"
-          style={{ background: config.headerBg, borderColor: `${accentColor}20` }}
+          className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0"
+          style={{ background: cfg.headerBg, borderColor: `${accent}18` }}
         >
           <div className="flex items-center gap-2.5">
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: `${accentColor}20`, border: `1px solid ${accentColor}40` }}
+              className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: `${accent}18`, border: `1px solid ${accent}38` }}
             >
-              <Icon size={16} style={{ color: accentColor }} />
+              <Icon size={14} style={{ color: accent }} />
             </div>
             <div>
-              <div className="text-xs font-bold tracking-widest" style={{ color: `${accentColor}99` }}>
-                STRATEGY CARD
+              <div className="text-[10px] font-bold tracking-widest uppercase" style={{ color: `${accent}80` }}>
+                Strategy Card
               </div>
-              <div className="text-sm font-semibold text-white/90 leading-tight">{strategy?.label}</div>
+              <div className="text-xs font-semibold text-white/85 leading-tight">{strategy?.label}</div>
             </div>
           </div>
-          <div
-            className="px-3 py-1 rounded-full text-xs font-bold tracking-wider"
-            style={{
-              background: `${accentColor}20`,
-              border: `1px solid ${accentColor}50`,
-              color: accentColor,
-            }}
+          <span
+            className="text-[10px] font-bold tracking-widest px-2.5 py-1 rounded-full uppercase"
+            style={{ background: `${accent}18`, border: `1px solid ${accent}45`, color: accent }}
           >
-            {config.label}
-          </div>
+            {cfg.label}
+          </span>
         </div>
 
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        {/* ── Scrollable body ── */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-          {/* Score + Emotion Row */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Frustration Score */}
+          {/* Score row */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Frustration */}
             <div
-              className="rounded-xl p-4"
-              style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.06)' }}
+              className="rounded-xl p-3"
+              style={{ background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.055)' }}
             >
-              <div className="text-xs text-white/40 font-medium uppercase tracking-wider mb-2">
-                Frustration Score
+              <div className="text-[10px] text-white/35 font-semibold uppercase tracking-wider mb-2">
+                Frustration
               </div>
-              <div className="flex items-end gap-1.5 mb-3">
-                <AnimatedScore score={frustration?.frustration_score || 0} color={accentColor} />
-                <span className="text-white/30 text-lg font-light mb-1.5">/ 10</span>
+              <div className="flex items-baseline gap-1 mb-2">
+                <AnimatedCount value={frustration?.frustration_score || 0} color={accent} />
+                <span className="text-white/25 text-sm font-light">/ 10</span>
               </div>
-              <ScoreBar score={frustration?.frustration_score || 0} color={accentColor} />
+              <ScoreBar value={frustration?.frustration_score || 0} max={10} color={accent} />
             </div>
 
-            {/* Churn Probability */}
+            {/* Churn */}
             <div
-              className="rounded-xl p-4"
-              style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.06)' }}
+              className="rounded-xl p-3"
+              style={{ background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.055)' }}
             >
-              <div className="text-xs text-white/40 font-medium uppercase tracking-wider mb-2">
-                Churn Probability
+              <div className="text-[10px] text-white/35 font-semibold uppercase tracking-wider mb-2">
+                Churn Risk
               </div>
-              <div className="flex items-end gap-1.5 mb-3">
-                <motion.span
-                  key={frustration?.churn_probability}
-                  initial={{ scale: 0.7, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="text-5xl font-black"
-                  style={{ color: accentColor, textShadow: `0 0 30px ${accentColor}66` }}
-                >
-                  {Math.round((frustration?.churn_probability || 0) * 100)}
-                </motion.span>
-                <span className="text-white/30 text-lg font-light mb-1.5">%</span>
+              <div className="flex items-baseline gap-0.5 mb-2">
+                <AnimatedCount
+                  value={Math.round((frustration?.churn_probability || 0) * 100)}
+                  color={accent}
+                />
+                <span className="text-white/25 text-sm font-light ml-0.5">%</span>
               </div>
-              <ScoreBar score={(frustration?.churn_probability || 0) * 10} color={accentColor} />
+              <ScoreBar value={(frustration?.churn_probability || 0) * 10} max={10} color={accent} />
             </div>
           </div>
 
           {/* Emotion + Trajectory */}
           <div
-            className="rounded-xl px-4 py-3 flex items-center justify-between"
-            style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}
+            className="flex items-center justify-between px-3 py-2.5 rounded-xl"
+            style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.05)' }}
           >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{emotion?.icon || '😐'}</span>
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">{emotion?.icon || '😐'}</span>
               <div>
-                <div className="text-xs text-white/40 uppercase tracking-wider">Current Emotion</div>
-                <div className="font-semibold text-sm" style={{ color: emotion?.color || '#8E8E93' }}>
-                  {emotion?.label || 'Unknown'}
-                  <span className="text-white/30 font-normal text-xs ml-2">
-                    {Math.round((emotion?.confidence || 0) * 100)}% conf.
+                <div className="text-[10px] text-white/35 uppercase tracking-wider">Emotion</div>
+                <div className="text-xs font-semibold" style={{ color: emotion?.color || '#8E8E93' }}>
+                  {emotion?.label || '—'}
+                  <span className="text-white/25 font-normal ml-1.5 text-[10px]">
+                    {Math.round((emotion?.confidence || 0) * 100)}%
                   </span>
                 </div>
               </div>
             </div>
-            <TrajectoryBadge trajectory={frustration?.trajectory || 'stable'} />
+            <TrajectoryChip trajectory={frustration?.trajectory || 'stable'} />
           </div>
 
-          {/* Key Stats */}
+          {/* Stats row */}
           <div className="grid grid-cols-3 gap-2">
             {[
-              { label: 'Tickets', value: frustration?.interaction_count || 0, icon: '🎫' },
-              { label: 'Unresolved', value: frustration?.unresolved_count || 0, icon: '⚠️' },
-              { label: 'Sentiment', value: sentiment?.label || 'Neutral', icon: '💬', isText: true },
-            ].map((stat) => (
+              { label: 'Tickets',    value: frustration?.interaction_count || 0,   icon: '🎫' },
+              { label: 'Unresolved', value: frustration?.unresolved_count || 0,    icon: '📌' },
+              { label: 'Sentiment',  value: sentiment?.label || 'Neutral',         icon: '💬', text: true },
+            ].map(({ label, value, icon, text }) => (
               <div
-                key={stat.label}
-                className="rounded-xl p-3 text-center"
-                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}
+                key={label}
+                className="flex flex-col items-center gap-1 py-2.5 rounded-xl"
+                style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.05)' }}
               >
-                <div className="text-lg mb-1">{stat.icon}</div>
-                <div className="font-bold text-white/90 text-sm">
-                  {stat.isText ? stat.value : stat.value}
-                </div>
-                <div className="text-white/30 text-xs">{stat.label}</div>
+                <span className="text-base leading-none">{icon}</span>
+                <span className="text-xs font-bold text-white/80">{value}</span>
+                <span className="text-[10px] text-white/30">{label}</span>
               </div>
             ))}
           </div>
 
-          {/* Flags */}
-          {frustration?.flags && frustration.flags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {frustration.flags.map(flag => (
-                <span
-                  key={flag}
-                  className="text-xs px-2.5 py-1 rounded-full font-medium"
-                  style={{
-                    background: `${accentColor}15`,
-                    border: `1px solid ${accentColor}30`,
-                    color: `${accentColor}cc`,
-                  }}
-                >
-                  {flag.replace(/_/g, ' ')}
-                </span>
-              ))}
-            </div>
-          )}
+          {/* Active flags */}
+          <FlagRow flags={frustration?.flags || []} color={accent} />
 
           {/* Divider */}
-          <div
-            className="border-t border-dashed"
-            style={{ borderColor: `${accentColor}25` }}
-          />
+          <div className="border-t border-dashed" style={{ borderColor: `${accent}20` }} />
 
-          {/* Recommended Actions */}
+          {/* Recommended actions */}
           <div>
-            <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: `${accentColor}80` }}>
+            <div
+              className="text-[10px] font-bold uppercase tracking-widest mb-2.5"
+              style={{ color: `${accent}70` }}
+            >
               Recommended Actions
             </div>
-            <ul className="space-y-0">
-              {(strategy?.actions || []).map((action, i) => (
-                <ActionItem key={i} action={action} color={accentColor} index={i} />
-              ))}
-            </ul>
+            <ActionList actions={strategy?.actions || []} color={accent} />
           </div>
 
-          {/* Tone Guidance */}
+          {/* Tone guidance */}
           {strategy?.tone_guidance && (
             <div
-              className="rounded-xl px-4 py-3"
-              style={{ background: `${accentColor}0a`, border: `1px solid ${accentColor}20` }}
+              className="px-3.5 py-3 rounded-xl"
+              style={{ background: `${accent}08`, border: `1px solid ${accent}18` }}
             >
-              <div className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: `${accentColor}60` }}>
+              <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: `${accent}55` }}>
                 Tone Guidance
               </div>
-              <p className="text-sm text-white/60 leading-relaxed italic">
+              <p className="text-xs text-white/55 leading-relaxed italic">
                 "{strategy.tone_guidance}"
               </p>
             </div>
           )}
 
-          {/* Key Signals */}
-          {strategy?.reasoning && strategy.reasoning.length > 0 && (
+          {/* Reasoning */}
+          {strategy?.reasoning?.length > 0 && (
             <div>
-              <div className="text-xs font-bold uppercase tracking-widest mb-2.5" style={{ color: `${accentColor}80` }}>
+              <div className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: `${accent}70` }}>
                 Why This Strategy
               </div>
               <div className="space-y-1.5">
-                {strategy.reasoning.map((reason, i) => (
+                {strategy.reasoning.map((r, i) => (
                   <motion.div
                     key={i}
-                    initial={{ opacity: 0, x: -6 }}
+                    initial={{ opacity: 0, x: -5 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 + i * 0.06 }}
-                    className="flex items-center gap-2.5 text-xs text-white/50"
+                    transition={{ delay: 0.4 + i * 0.06 }}
+                    className="flex items-start gap-2 text-[11px] text-white/45"
                   >
-                    <div className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: accentColor }} />
-                    {reason}
+                    <div className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ background: accent }} />
+                    {r}
                   </motion.div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Action Flags */}
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { key: 'skip_greeting', label: 'Skip Greeting', icon: '🚫' },
-              { key: 'escalate_human', label: 'Escalate Human', icon: '👤' },
-              { key: 'offer_credit', label: 'Offer Credit', icon: '💳' },
-              { key: 'flag_churn_risk', label: 'Churn Flagged', icon: '⚠️' },
-            ].map(({ key, label, icon }) => {
-              const active = strategy?.[key]
-              return (
-                <div
-                  key={key}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium"
-                  style={{
-                    background: active ? `${accentColor}12` : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${active ? `${accentColor}35` : 'rgba(255,255,255,0.06)'}`,
-                    color: active ? accentColor : 'rgba(255,255,255,0.25)',
-                  }}
-                >
-                  <span>{icon}</span>
-                  <span>{label}</span>
-                  {active && (
-                    <div className="w-1.5 h-1.5 rounded-full ml-auto" style={{ background: accentColor }} />
-                  )}
-                </div>
-              )
-            })}
-          </div>
+          {/* Action flags grid */}
+          <ActionFlags strategy={strategy} color={accent} />
+
         </div>
       </motion.div>
     </AnimatePresence>

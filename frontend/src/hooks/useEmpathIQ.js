@@ -1,5 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { getCustomers, getHistory, simulateScenario, analyzeMessage, createCustomer } from '../api/empathiq'
+import { useState, useEffect, useCallback } from 'react'
+import {
+  getCustomers,
+  getHistory,
+  analyzeMessage,
+  createCustomer,
+  deleteCustomer,
+  markResolved,
+} from '../api/empathiq'
 
 export function useEmpathIQ() {
   const [customers, setCustomers] = useState([])
@@ -11,47 +18,59 @@ export function useEmpathIQ() {
   const [error, setError] = useState(null)
   const [apiOnline, setApiOnline] = useState(false)
 
+  // ── API health check ─────────────────────────────────────────────
   const checkApi = useCallback(async () => {
     try {
-      await fetch('http://localhost:8000/health')
-      setApiOnline(true)
+      const res = await fetch('http://localhost:8000/health')
+      if (res.ok) {
+        setApiOnline(true)
+      } else {
+        setApiOnline(false)
+      }
     } catch {
       setApiOnline(false)
     }
   }, [])
 
+  // ── Load all customers ───────────────────────────────────────────
   const loadCustomers = useCallback(async () => {
     try {
       const res = await getCustomers()
-      setCustomers(res.data)
+      setCustomers(res.data || [])
     } catch (e) {
-      setError('Failed to load customers')
+      // Silently fail — API may not be up yet
     }
   }, [])
 
+  // ── Select customer & load their history ─────────────────────────
   const selectCustomer = useCallback(async (customer) => {
     setSelectedCustomer(customer)
     setLatestAnalysis(null)
     setLoading(true)
+    setError(null)
     try {
       const res = await getHistory(customer.id)
       setHistory(res.data || [])
     } catch (e) {
       setHistory([])
+      setError('Failed to load conversation history.')
     } finally {
       setLoading(false)
     }
   }, [])
 
+  // ── Analyze a new message ────────────────────────────────────────
   const sendMessage = useCallback(async (message, issueCategory = 'general') => {
     if (!selectedCustomer || !message.trim()) return
     setAnalyzing(true)
+    setError(null)
     try {
       const res = await analyzeMessage(selectedCustomer.id, message, issueCategory)
       const analysis = res.data
+
       setLatestAnalysis(analysis)
-      
-      // Add new interaction to history (optimistic update)
+
+      // Optimistic update — add to chat immediately
       const newInteraction = {
         id: Date.now(),
         customer_id: selectedCustomer.id,
@@ -68,59 +87,67 @@ export function useEmpathIQ() {
         resolved: false,
         isNew: true,
       }
-      setHistory(prev => [...prev, newInteraction])
+      setHistory((prev) => [...prev, newInteraction])
 
-      // Update customer score in list
-      setCustomers(prev => prev.map(c =>
-        c.id === selectedCustomer.id
-          ? { ...c,
-              current_frustration_score: analysis.frustration.frustration_score,
-              current_churn_probability: analysis.frustration.churn_probability,
-              interaction_count: (c.interaction_count || 0) + 1,
-            }
-          : c
-      ))
-
-      setSelectedCustomer(prev => prev ? {
-        ...prev,
+      // Update customer in list
+      const updatedCustomer = {
+        ...selectedCustomer,
         current_frustration_score: analysis.frustration.frustration_score,
         current_churn_probability: analysis.frustration.churn_probability,
-      } : prev)
-
+        interaction_count: (selectedCustomer.interaction_count || 0) + 1,
+      }
+      setSelectedCustomer(updatedCustomer)
+      setCustomers((prev) =>
+        prev.map((c) => (c.id === selectedCustomer.id ? updatedCustomer : c))
+      )
     } catch (e) {
-      setError(e?.response?.data?.detail || 'Analysis failed')
+      setError(e.message || 'Analysis failed. Check that the backend is running.')
     } finally {
       setAnalyzing(false)
     }
   }, [selectedCustomer])
 
-  const runScenario = useCallback(async (scenarioName) => {
-    setLoading(true)
-    setLatestAnalysis(null)
-    setError(null)
+  // ── Add a new customer ───────────────────────────────────────────
+  const addCustomer = useCallback(async (data) => {
     try {
-      const res = await simulateScenario(scenarioName)
-      const analysis = res.data
-      setLatestAnalysis(analysis)
-
-      // Reload everything
-      await loadCustomers()
-
-      const custRes = await getHistory(analysis.customer_id)
-      setHistory(custRes.data || [])
-
-      // Find and select the customer
-      const custListRes = await getCustomers()
-      const found = custListRes.data.find(c => c.id === analysis.customer_id)
-      if (found) setSelectedCustomer(found)
-
+      const res = await createCustomer(data)
+      const newCustomer = { ...res.data, interaction_count: 0 }
+      setCustomers((prev) => [newCustomer, ...prev])
+      return { success: true, customer: newCustomer }
     } catch (e) {
-      setError(e?.response?.data?.detail || 'Simulation failed')
-    } finally {
-      setLoading(false)
+      return { success: false, error: e.message }
     }
-  }, [loadCustomers])
+  }, [])
 
+  // ── Delete a customer ────────────────────────────────────────────
+  const removeCustomer = useCallback(async (customerId) => {
+    try {
+      await deleteCustomer(customerId)
+      setCustomers((prev) => prev.filter((c) => c.id !== customerId))
+      if (selectedCustomer?.id === customerId) {
+        setSelectedCustomer(null)
+        setHistory([])
+        setLatestAnalysis(null)
+      }
+      return { success: true }
+    } catch (e) {
+      return { success: false, error: e.message }
+    }
+  }, [selectedCustomer])
+
+  // ── Toggle resolved on an interaction ───────────────────────────
+  const toggleResolved = useCallback(async (interactionId, resolved) => {
+    try {
+      await markResolved(interactionId, resolved)
+      setHistory((prev) =>
+        prev.map((i) => (i.id === interactionId ? { ...i, resolved } : i))
+      )
+    } catch (e) {
+      setError('Failed to update ticket status.')
+    }
+  }, [])
+
+  // ── Lifecycle ────────────────────────────────────────────────────
   useEffect(() => {
     checkApi()
     const interval = setInterval(checkApi, 5000)
@@ -131,9 +158,10 @@ export function useEmpathIQ() {
     if (apiOnline) {
       loadCustomers()
     }
-  }, [apiOnline, loadCustomers])
+  }, [apiOnline]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
+    // state
     customers,
     selectedCustomer,
     history,
@@ -142,9 +170,12 @@ export function useEmpathIQ() {
     analyzing,
     error,
     apiOnline,
+    // actions
     selectCustomer,
     sendMessage,
-    runScenario,
+    addCustomer,
+    removeCustomer,
+    toggleResolved,
     loadCustomers,
     setError,
   }

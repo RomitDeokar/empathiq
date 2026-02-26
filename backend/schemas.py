@@ -1,8 +1,8 @@
 """
 Pydantic schemas for request/response validation
 """
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, EmailStr, field_validator
+from typing import List, Optional
 from datetime import datetime
 
 
@@ -11,6 +11,11 @@ class AnalyzeRequest(BaseModel):
     message: str
     issue_category: Optional[str] = "general"
     resolved: Optional[bool] = False
+
+
+class MarkResolvedRequest(BaseModel):
+    interaction_id: int
+    resolved: bool
 
 
 class EmotionResult(BaseModel):
@@ -72,15 +77,15 @@ class InteractionOut(BaseModel):
     customer_id: str
     timestamp: datetime
     message: str
-    emotion_label: str
-    emotion_raw: str
-    emotion_color: str
-    emotion_icon: str
-    sentiment_score: float
-    sentiment_label: str
-    frustration_score: float
-    issue_category: str
-    resolved: bool
+    emotion_label: Optional[str] = None
+    emotion_raw: Optional[str] = None
+    emotion_color: Optional[str] = None
+    emotion_icon: Optional[str] = None
+    sentiment_score: Optional[float] = None
+    sentiment_label: Optional[str] = None
+    frustration_score: Optional[float] = None
+    issue_category: Optional[str] = "general"
+    resolved: bool = False
 
     class Config:
         from_attributes = True
@@ -100,13 +105,32 @@ class CustomerOut(BaseModel):
         from_attributes = True
 
 
-class SimulateRequest(BaseModel):
-    scenario_name: str  # "escalating", "first_timer", "silent_churner"
-
-
 class CreateCustomerRequest(BaseModel):
-    id: str
     name: str
     email: str
     plan_tier: Optional[str] = "standard"
     avatar_color: Optional[str] = "#5AC8FA"
+
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Name cannot be empty")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def email_not_empty(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not v or "@" not in v:
+            raise ValueError("Valid email required")
+        return v
+
+    @field_validator("plan_tier")
+    @classmethod
+    def valid_tier(cls, v: str) -> str:
+        allowed = {"free", "standard", "pro", "enterprise"}
+        if v not in allowed:
+            return "standard"
+        return v

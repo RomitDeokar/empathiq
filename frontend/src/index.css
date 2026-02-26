@@ -3,10 +3,8 @@
 @tailwind utilities;
 
 @layer base {
-  * {
-    box-sizing: border-box;
-  }
-  
+  * { box-sizing: border-box; }
+
   body {
     font-family: 'Inter', system-ui, sans-serif;
     background-color: #050508;
@@ -15,159 +13,202 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: #0d0d1a;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #2a2a45;
-    border-radius: 3px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #3a3a5a;
-  }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
 }
 
 @layer components {
-  .glass-card {
-    background: rgba(13, 13, 26, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+
+  /* ── Glassmorphism cards ── */
+  .glass {
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(255,255,255,0.07);
     backdrop-filter: blur(12px);
   }
 
-  .glass-card-hover {
-    @apply glass-card;
-    transition: all 0.2s ease;
+  .glass-hover {
+    @apply glass;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .glass-hover:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.12);
   }
 
-  .glass-card-hover:hover {
-    border-color: rgba(255, 255, 255, 0.12);
-    background: rgba(20, 20, 38, 0.9);
-  }
-
-  .frustration-bar {
-    height: 6px;
-    border-radius: 3px;
-    background: linear-gradient(90deg, #34C759, #FFCC00, #FF9500, #FF6B35, #FF2D55);
-    background-size: 200% 100%;
-  }
-
-  .glow-red {
-    box-shadow: 0 0 20px rgba(255, 45, 85, 0.3), 0 0 60px rgba(255, 45, 85, 0.1);
-  }
-
-  .glow-orange {
-    box-shadow: 0 0 20px rgba(255, 107, 53, 0.3), 0 0 60px rgba(255, 107, 53, 0.1);
-  }
-
-  .glow-yellow {
-    box-shadow: 0 0 20px rgba(255, 214, 10, 0.2), 0 0 60px rgba(255, 214, 10, 0.08);
-  }
-
-  .glow-green {
-    box-shadow: 0 0 20px rgba(52, 199, 89, 0.2), 0 0 60px rgba(52, 199, 89, 0.08);
-  }
-
-  .message-bubble-in {
-    animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(12px) scale(0.98);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  @keyframes scoreCount {
-    from { opacity: 0; transform: scale(0.8); }
-    to { opacity: 1; transform: scale(1); }
-  }
-
-  .score-animate {
-    animation: scoreCount 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-
-  .strategy-card-enter {
-    animation: strategyEnter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-
-  @keyframes strategyEnter {
-    from {
-      opacity: 0;
-      transform: scale(0.95) translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-  }
-
-  .pulse-ring {
-    animation: pulseRing 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
-  }
-
-  @keyframes pulseRing {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.05); opacity: 0.8; }
-    100% { transform: scale(1); opacity: 1; }
-  }
-
-  .scan-line {
-    background: linear-gradient(
-      180deg,
-      transparent 0%,
-      rgba(90, 200, 250, 0.08) 50%,
-      transparent 100%
-    );
-    animation: scan 3s linear infinite;
-  }
-
-  @keyframes scan {
-    0% { transform: translateY(-100%); }
-    100% { transform: translateY(100vh); }
-  }
-
+  /* ── Tier badges ── */
   .tier-badge {
     font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
-    padding: 2px 8px;
-    border-radius: 4px;
+    padding: 2px 7px;
+    border-radius: 5px;
+    white-space: nowrap;
   }
-
   .tier-enterprise {
-    background: rgba(175, 82, 222, 0.2);
-    color: #AF52DE;
+    background: rgba(175, 82, 222, 0.15);
+    color: #BF5AF2;
     border: 1px solid rgba(175, 82, 222, 0.3);
   }
-
   .tier-pro {
-    background: rgba(90, 200, 250, 0.15);
+    background: rgba(90, 200, 250, 0.12);
     color: #5AC8FA;
-    border: 1px solid rgba(90, 200, 250, 0.3);
+    border: 1px solid rgba(90, 200, 250, 0.28);
   }
-
   .tier-standard {
-    background: rgba(142, 142, 147, 0.15);
-    color: #8E8E93;
+    background: rgba(142, 142, 147, 0.12);
+    color: #98989D;
     border: 1px solid rgba(142, 142, 147, 0.2);
   }
-
   .tier-free {
     background: rgba(52, 199, 89, 0.1);
-    color: #34C759;
-    border: 1px solid rgba(52, 199, 89, 0.2);
+    color: #30D158;
+    border: 1px solid rgba(52, 199, 89, 0.22);
   }
+
+  /* ── Panel section header ── */
+  .panel-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.055);
+    background: rgba(0,0,0,0.22);
+    flex-shrink: 0;
+  }
+
+  /* ── Form input ── */
+  .form-input {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 9px 13px;
+    font-size: 14px;
+    color: rgba(255,255,255,0.85);
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .form-input::placeholder { color: rgba(255,255,255,0.25); }
+  .form-input:focus {
+    border-color: rgba(90,200,250,0.45);
+    background: rgba(255,255,255,0.06);
+  }
+  .form-input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    background: #0A84FF;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s, opacity 0.15s;
+  }
+  .btn-primary:hover { background: #409CFF; }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    background: transparent;
+    color: rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.09);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-ghost:hover {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.8);
+    border-color: rgba(255,255,255,0.16);
+  }
+  .btn-ghost:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    background: rgba(255,59,48,0.1);
+    color: #FF453A;
+    border: 1px solid rgba(255,59,48,0.25);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-danger:hover { background: rgba(255,59,48,0.18); }
+
+  /* ── Animations ── */
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0)   scale(1); }
+  }
+  .animate-slide-up { animation: slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .animate-fade-in { animation: fadeIn 0.25s ease; }
+
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg,
+      rgba(255,255,255,0.04) 25%,
+      rgba(255,255,255,0.08) 50%,
+      rgba(255,255,255,0.04) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+  }
+
+  /* ── Modal overlay ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 16px;
+  }
+
+  /* ── Dot status indicator ── */
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-dot.online  { background: #30D158; box-shadow: 0 0 8px #30D158; }
+  .status-dot.offline { background: #FF453A; box-shadow: 0 0 8px #FF453A; }
 }
+
+/* ── Utility overrides ── */
+.pl-10-custom { padding-left: 38px; }
