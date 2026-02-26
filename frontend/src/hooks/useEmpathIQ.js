@@ -6,6 +6,7 @@ import {
   createCustomer,
   deleteCustomer,
   markResolved,
+  runSimulation,
 } from '../api/empathiq'
 
 export function useEmpathIQ() {
@@ -15,34 +16,29 @@ export function useEmpathIQ() {
   const [latestAnalysis, setLatestAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+  const [simulating, setSimulating] = useState(false)
   const [error, setError] = useState(null)
   const [apiOnline, setApiOnline] = useState(false)
 
-  // ── API health check ─────────────────────────────────────────────
+  // ── API health check ──────────────────────────────────────────────
   const checkApi = useCallback(async () => {
     try {
       const res = await fetch('http://localhost:8000/health')
-      if (res.ok) {
-        setApiOnline(true)
-      } else {
-        setApiOnline(false)
-      }
+      setApiOnline(res.ok)
     } catch {
       setApiOnline(false)
     }
   }, [])
 
-  // ── Load all customers ───────────────────────────────────────────
+  // ── Load all customers ────────────────────────────────────────────
   const loadCustomers = useCallback(async () => {
     try {
       const res = await getCustomers()
       setCustomers(res.data || [])
-    } catch (e) {
-      // Silently fail — API may not be up yet
-    }
+    } catch (_) {}
   }, [])
 
-  // ── Select customer & load their history ─────────────────────────
+  // ── Select customer & load history ───────────────────────────────
   const selectCustomer = useCallback(async (customer) => {
     setSelectedCustomer(customer)
     setLatestAnalysis(null)
@@ -51,7 +47,7 @@ export function useEmpathIQ() {
     try {
       const res = await getHistory(customer.id)
       setHistory(res.data || [])
-    } catch (e) {
+    } catch (_) {
       setHistory([])
       setError('Failed to load conversation history.')
     } finally {
@@ -59,7 +55,7 @@ export function useEmpathIQ() {
     }
   }, [])
 
-  // ── Analyze a new message ────────────────────────────────────────
+  // ── Analyze a new message ─────────────────────────────────────────
   const sendMessage = useCallback(async (message, issueCategory = 'general') => {
     if (!selectedCustomer || !message.trim()) return
     setAnalyzing(true)
@@ -70,7 +66,6 @@ export function useEmpathIQ() {
 
       setLatestAnalysis(analysis)
 
-      // Optimistic update — add to chat immediately
       const newInteraction = {
         id: Date.now(),
         customer_id: selectedCustomer.id,
@@ -89,7 +84,6 @@ export function useEmpathIQ() {
       }
       setHistory((prev) => [...prev, newInteraction])
 
-      // Update customer in list
       const updatedCustomer = {
         ...selectedCustomer,
         current_frustration_score: analysis.frustration.frustration_score,
@@ -107,7 +101,50 @@ export function useEmpathIQ() {
     }
   }, [selectedCustomer])
 
-  // ── Add a new customer ───────────────────────────────────────────
+  // ── Run a demo scenario ───────────────────────────────────────────
+  const runScenario = useCallback(async (scenarioName) => {
+    setSimulating(true)
+    setError(null)
+    try {
+      const res = await runSimulation(scenarioName)
+      const { customer, history: scenarioHistory, analysis } = res.data
+
+      // Build full customer object
+      const fullCustomer = {
+        ...customer,
+        interaction_count: scenarioHistory.length,
+      }
+
+      // Update customers list — upsert the demo customer
+      setCustomers((prev) => {
+        const exists = prev.find((c) => c.id === fullCustomer.id)
+        if (exists) {
+          return prev.map((c) => (c.id === fullCustomer.id ? fullCustomer : c))
+        }
+        return [fullCustomer, ...prev]
+      })
+
+      // Select the scenario customer
+      setSelectedCustomer(fullCustomer)
+
+      // Load full history with isNew flag on last message
+      const enrichedHistory = scenarioHistory.map((h, idx) => ({
+        ...h,
+        isNew: idx === scenarioHistory.length - 1,
+      }))
+      setHistory(enrichedHistory)
+
+      // Set analysis
+      setLatestAnalysis(analysis)
+
+    } catch (e) {
+      setError(e.message || 'Simulation failed.')
+    } finally {
+      setSimulating(false)
+    }
+  }, [])
+
+  // ── Add a new customer ────────────────────────────────────────────
   const addCustomer = useCallback(async (data) => {
     try {
       const res = await createCustomer(data)
@@ -119,7 +156,7 @@ export function useEmpathIQ() {
     }
   }, [])
 
-  // ── Delete a customer ────────────────────────────────────────────
+  // ── Delete a customer ─────────────────────────────────────────────
   const removeCustomer = useCallback(async (customerId) => {
     try {
       await deleteCustomer(customerId)
@@ -135,19 +172,19 @@ export function useEmpathIQ() {
     }
   }, [selectedCustomer])
 
-  // ── Toggle resolved on an interaction ───────────────────────────
+  // ── Toggle resolved ───────────────────────────────────────────────
   const toggleResolved = useCallback(async (interactionId, resolved) => {
     try {
       await markResolved(interactionId, resolved)
       setHistory((prev) =>
         prev.map((i) => (i.id === interactionId ? { ...i, resolved } : i))
       )
-    } catch (e) {
+    } catch (_) {
       setError('Failed to update ticket status.')
     }
   }, [])
 
-  // ── Lifecycle ────────────────────────────────────────────────────
+  // ── Lifecycle ─────────────────────────────────────────────────────
   useEffect(() => {
     checkApi()
     const interval = setInterval(checkApi, 5000)
@@ -155,28 +192,14 @@ export function useEmpathIQ() {
   }, [checkApi])
 
   useEffect(() => {
-    if (apiOnline) {
-      loadCustomers()
-    }
-  }, [apiOnline]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (apiOnline) loadCustomers()
+  }, [apiOnline]) // eslint-disable-line
 
   return {
-    // state
-    customers,
-    selectedCustomer,
-    history,
-    latestAnalysis,
-    loading,
-    analyzing,
-    error,
-    apiOnline,
-    // actions
-    selectCustomer,
-    sendMessage,
-    addCustomer,
-    removeCustomer,
-    toggleResolved,
-    loadCustomers,
-    setError,
+    customers, selectedCustomer, history, latestAnalysis,
+    loading, analyzing, simulating, error, apiOnline,
+    selectCustomer, sendMessage, runScenario,
+    addCustomer, removeCustomer, toggleResolved,
+    loadCustomers, setError,
   }
 }

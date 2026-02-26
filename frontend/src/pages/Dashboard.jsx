@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Users, Zap, AlertCircle, RefreshCw, UserPlus, Trash2,
-  BarChart2, Brain,
+  Users, Zap, AlertCircle, RefreshCw, UserPlus,
+  BarChart2, Brain, Play, ChevronRight, Loader2,
 } from 'lucide-react'
 import { CustomerList }      from '../components/CustomerList'
 import { ChatFeed }          from '../components/ChatFeed'
@@ -14,9 +14,108 @@ import { FrustrationBadge }  from '../components/FrustrationBadge'
 import { useEmpathIQ }       from '../hooks/useEmpathIQ'
 import clsx from 'clsx'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-components
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Scenario config ──────────────────────────────────────────────────────────
+
+const SCENARIOS = [
+  {
+    name: 'escalating',
+    label: 'The Escalator',
+    icon: '⚡',
+    desc: '4th billing ticket',
+    score: '8.4',
+    urgency: 'CRITICAL',
+    color: '#FF6B35',
+    bg: 'rgba(255,107,53,0.08)',
+    border: 'rgba(255,107,53,0.25)',
+  },
+  {
+    name: 'first_timer',
+    label: 'First Timer',
+    icon: '👋',
+    desc: 'New user, calm',
+    score: '2.1',
+    urgency: 'LOW',
+    color: '#30D158',
+    bg: 'rgba(48,209,88,0.08)',
+    border: 'rgba(48,209,88,0.25)',
+  },
+  {
+    name: 'silent_churner',
+    label: 'Silent Churner',
+    icon: '🔇',
+    desc: '18 days gone, back cold',
+    score: '9.1',
+    urgency: 'EMERGENCY',
+    color: '#FF375F',
+    bg: 'rgba(255,55,95,0.08)',
+    border: 'rgba(255,55,95,0.25)',
+  },
+]
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function ScenarioBar({ onSimulate, simulating }) {
+  const [active, setActive] = useState(null)
+
+  const handleClick = (scenarioName) => {
+    if (simulating) return
+    setActive(scenarioName)
+    onSimulate(scenarioName)
+  }
+
+  return (
+    <div
+      className="flex items-center gap-2 px-4 py-2 border-b flex-shrink-0"
+      style={{
+        borderColor: 'rgba(255,255,255,0.06)',
+        background: 'rgba(0,0,0,0.3)',
+      }}
+    >
+      <div className="flex items-center gap-1.5 mr-2">
+        <Play size={10} className="text-white/30" />
+        <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">
+          Demo
+        </span>
+      </div>
+
+      <div className="flex gap-1.5 flex-1">
+        {SCENARIOS.map((s) => {
+          const isRunning = simulating && active === s.name
+          return (
+            <motion.button
+              key={s.name}
+              onClick={() => handleClick(s.name)}
+              disabled={simulating}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex-1 justify-center"
+              style={{
+                background: s.bg,
+                border: `1px solid ${s.border}`,
+                color: s.color,
+                cursor: simulating ? 'not-allowed' : 'pointer',
+                opacity: simulating && active !== s.name ? 0.45 : 1,
+              }}
+            >
+              {isRunning ? (
+                <Loader2 size={11} className="animate-spin" />
+              ) : (
+                <span className="text-sm leading-none">{s.icon}</span>
+              )}
+              <span className="hidden sm:inline">{s.label}</span>
+              <span
+                className="text-[9px] font-bold px-1 py-0.5 rounded"
+                style={{ background: `${s.color}20`, color: s.color }}
+              >
+                ~{s.score}
+              </span>
+            </motion.button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 function TopBar({ apiOnline, loading, onRefresh, onAddCustomer }) {
   return (
@@ -28,7 +127,6 @@ function TopBar({ apiOnline, loading, onRefresh, onAddCustomer }) {
         backdropFilter: 'blur(16px)',
       }}
     >
-      {/* Logo */}
       <div className="flex items-center gap-3">
         <div
           className="w-8 h-8 rounded-xl flex items-center justify-center"
@@ -40,23 +138,21 @@ function TopBar({ apiOnline, loading, onRefresh, onAddCustomer }) {
           <Brain size={16} style={{ color: '#5AC8FA' }} />
         </div>
         <div>
-          <span className="font-black text-base text-white tracking-tight">EmpathIQ</span>
-          <span
-            className="ml-2 text-[10px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded"
-            style={{ background: 'rgba(90,200,250,0.1)', color: 'rgba(90,200,250,0.7)' }}
-          >
-            v2
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-black text-base text-white tracking-tight">EmpathIQ</span>
+            <span
+              className="text-[10px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded"
+              style={{ background: 'rgba(90,200,250,0.1)', color: 'rgba(90,200,250,0.7)' }}
+            >
+              v2
+            </span>
+          </div>
+          <div className="text-[10px] text-white/25 hidden md:block">
+            Emotional Context Layer for Customer Support
+          </div>
         </div>
       </div>
 
-      {/* Centre — system label */}
-      <div className="hidden md:flex items-center gap-2 text-white/25 text-xs">
-        <Zap size={11} />
-        <span>Emotional Context Layer for Customer Support</span>
-      </div>
-
-      {/* Right actions */}
       <div className="flex items-center gap-2">
         <button
           onClick={onRefresh}
@@ -66,13 +162,10 @@ function TopBar({ apiOnline, loading, onRefresh, onAddCustomer }) {
         >
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
         </button>
-
         <button onClick={onAddCustomer} className="btn-primary py-1.5 px-3 text-xs">
           <UserPlus size={13} />
           <span className="hidden sm:inline">Add Customer</span>
         </button>
-
-        {/* API status */}
         <div
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
@@ -108,8 +201,8 @@ function OfflineBanner() {
       style={{ background: 'rgba(255,149,0,0.07)', borderColor: 'rgba(255,149,0,0.15)' }}
     >
       <span className="text-[11px] text-orange-400/80">
-        ⚡ Backend not running —
-        <code className="ml-1.5 bg-white/8 px-1.5 py-0.5 rounded font-mono text-orange-300">
+        ⚡ Backend not running —{' '}
+        <code className="ml-1 bg-white/8 px-1.5 py-0.5 rounded font-mono text-orange-300">
           cd backend &amp;&amp; uvicorn main:app --reload
         </code>
       </span>
@@ -133,12 +226,7 @@ function ErrorBanner({ error, onDismiss }) {
           >
             <AlertCircle size={13} className="text-red-400 flex-shrink-0" />
             <span className="text-red-400/90 text-xs flex-1">{error}</span>
-            <button
-              onClick={onDismiss}
-              className="text-red-400/40 hover:text-red-400 text-sm px-1"
-            >
-              ✕
-            </button>
+            <button onClick={onDismiss} className="text-red-400/40 hover:text-red-400 text-sm px-1">✕</button>
           </div>
         </motion.div>
       )}
@@ -146,9 +234,7 @@ function ErrorBanner({ error, onDismiss }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Dashboard
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
   const {
@@ -156,19 +242,14 @@ export default function Dashboard() {
     loading, analyzing, error, apiOnline,
     selectCustomer, sendMessage, addCustomer, removeCustomer,
     toggleResolved, loadCustomers, setError,
+    runScenario, simulating,
   } = useEmpathIQ()
 
   const [showAddModal, setShowAddModal] = useState(false)
 
-  const handleAddCustomer = async (data) => {
-    const result = await addCustomer(data)
-    return result
-  }
-
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: '#050508' }}>
 
-      {/* Top bar */}
       <TopBar
         apiOnline={apiOnline}
         loading={loading}
@@ -176,18 +257,17 @@ export default function Dashboard() {
         onAddCustomer={() => setShowAddModal(true)}
       />
 
-      {/* Notification banners */}
+      {/* Scenario buttons bar */}
+      <ScenarioBar onSimulate={runScenario} simulating={simulating} />
+
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
       {!apiOnline && <OfflineBanner />}
 
-      {/* ── Three-panel layout ── */}
+      {/* Three-panel layout */}
       <div className="flex-1 overflow-hidden grid min-h-0" style={{ gridTemplateColumns: '272px 1fr 332px' }}>
 
-        {/* ═══ Panel 1 — Customers ═══════════════════════════════════ */}
-        <div
-          className="flex flex-col overflow-hidden border-r"
-          style={{ borderColor: 'rgba(255,255,255,0.05)' }}
-        >
+        {/* Panel 1 — Customers */}
+        <div className="flex flex-col overflow-hidden border-r" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
           <PanelHeader
             icon={Users}
             label="Customers"
@@ -203,7 +283,6 @@ export default function Dashboard() {
                 <button
                   onClick={() => setShowAddModal(true)}
                   className="w-6 h-6 rounded-lg flex items-center justify-center text-white/40 hover:text-sky-400 hover:bg-sky-500/10 transition-all"
-                  title="Add customer"
                 >
                   <UserPlus size={12} />
                 </button>
@@ -211,7 +290,6 @@ export default function Dashboard() {
             }
           />
 
-          {/* Customer list */}
           <div className="flex-1 overflow-y-auto">
             <CustomerList
               customers={customers}
@@ -221,7 +299,6 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Trajectory chart — only when meaningful */}
           {selectedCustomer && history.length >= 2 && (
             <div
               className="border-t flex-shrink-0 p-3"
@@ -238,13 +315,9 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* ═══ Panel 2 — Chat ════════════════════════════════════════ */}
+        {/* Panel 2 — Chat */}
         <div className="flex flex-col overflow-hidden">
-          {/* Chat header */}
-          <div
-            className="panel-header"
-            style={{ minHeight: 44 }}
-          >
+          <div className="panel-header" style={{ minHeight: 44 }}>
             {selectedCustomer ? (
               <div className="flex items-center gap-2.5 flex-1 min-w-0">
                 <div
@@ -278,13 +351,13 @@ export default function Dashboard() {
                 )}
               </div>
             ) : (
-              <span className="text-xs text-white/25 flex items-center gap-1.5">
-                <span>←</span> Select a customer to start
+              <span className="text-xs text-white/25 flex items-center gap-2">
+                <span>←</span>
+                <span>Select a customer or run a demo scenario above</span>
               </span>
             )}
           </div>
 
-          {/* Chat messages */}
           <div className="flex-1 overflow-y-auto">
             {loading && !analyzing ? (
               <div className="flex items-center justify-center h-full gap-2.5 text-white/25">
@@ -294,26 +367,22 @@ export default function Dashboard() {
             ) : (
               <ChatFeed
                 history={history}
-                analyzing={analyzing}
+                analyzing={analyzing || simulating}
                 customerName={selectedCustomer?.name}
                 onToggleResolved={toggleResolved}
               />
             )}
           </div>
 
-          {/* Input */}
           <MessageInput
             onSend={sendMessage}
-            analyzing={analyzing}
+            analyzing={analyzing || simulating}
             disabled={!selectedCustomer || !apiOnline}
           />
         </div>
 
-        {/* ═══ Panel 3 — Strategy Card ═══════════════════════════════ */}
-        <div
-          className="flex flex-col overflow-hidden border-l"
-          style={{ borderColor: 'rgba(255,255,255,0.05)' }}
-        >
+        {/* Panel 3 — Strategy Card */}
+        <div className="flex flex-col overflow-hidden border-l" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
           <PanelHeader
             icon={Zap}
             label="Strategy Card"
@@ -337,19 +406,17 @@ export default function Dashboard() {
               ) : null
             }
           />
-
           <div className="flex-1 overflow-hidden p-3">
-            <StrategyCard analysis={latestAnalysis} />
+            <StrategyCard analysis={latestAnalysis} simulating={simulating} />
           </div>
         </div>
       </div>
 
-      {/* ── Add Customer Modal ── */}
       <AnimatePresence>
         {showAddModal && (
           <AddCustomerModal
             onClose={() => setShowAddModal(false)}
-            onAdd={handleAddCustomer}
+            onAdd={addCustomer}
           />
         )}
       </AnimatePresence>

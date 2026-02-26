@@ -2,11 +2,10 @@ import axios from 'axios'
 
 const API = axios.create({
   baseURL: 'http://localhost:8000',
-  timeout: 15000,
+  timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Intercept errors for consistent handling
 API.interceptors.response.use(
   (res) => res,
   (err) => {
@@ -38,5 +37,11 @@ export const markResolved = (interactionId, resolved) =>
 
 export const getDashboard = () =>
   API.get('/dashboard/summary')
+
+export const runSimulation = (scenarioName) =>
+  API.post('/simulate', { scenario_name: scenarioName })
+
+export const getScenarios = () =>
+  API.get('/simulate/scenarios')
 
 export default API
