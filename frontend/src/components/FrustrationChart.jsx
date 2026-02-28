@@ -25,7 +25,7 @@ function CustomTooltip({ active, payload, label }) {
   )
 }
 
-export function FrustrationChart({ history = [] }) {
+export const FrustrationChart = React.memo(function FrustrationChart({ history = [] }) {
   if (!history || history.length < 2) {
     return (
       <div className="flex items-center justify-center h-20 text-white/20 text-xs text-center">
@@ -81,4 +81,4 @@ export function FrustrationChart({ history = [] }) {
       </AreaChart>
     </ResponsiveContainer>
   )
-}
+})

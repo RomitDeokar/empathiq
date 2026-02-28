@@ -1,1 +1,56 @@
+# =========================
+# Environment variables
+# =========================
+.env
+.env.local
+.env.*.local
+
+# =========================
+# Backend (Python)
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+.eggs/
+*.egg-info/
+venv/
+ENV/
+env/
+.venv/
+
+# =========================
+# Frontend (Node / Vite)
+# =========================
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# =========================
+# Database
+# =========================
 *.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+
+# =========================
+# IDE / OS
+# =========================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~

@@ -1,15 +1,33 @@
 import axios from 'axios'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '60000')
+
 const API = axios.create({
-  baseURL: 'http://localhost:8000',
-  timeout: 60000,
+  baseURL: API_BASE_URL,
+  timeout: API_TIMEOUT,
   headers: { 'Content-Type': 'application/json' },
 })
 
+API.interceptors.request.use((config) => {
+  config.metadata = { startTime: Date.now() }
+  return config
+})
+
 API.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    const duration = Date.now() - res.config.metadata.startTime
+    if (duration > 5000) {
+      console.warn(`[EmpathIQ] Slow request (${duration}ms): ${res.config.url}`)
+    }
+    return res
+  },
   (err) => {
     const msg = err?.response?.data?.detail || err?.message || 'Unknown error'
+    const status = err?.response?.status
+    if (status >= 500) {
+      console.error(`[EmpathIQ] Server error (${status}): ${msg}`)
+    }
     return Promise.reject(new Error(msg))
   }
 )
