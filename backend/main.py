@@ -98,8 +98,9 @@ def create_customer(req: CreateCustomerRequest, db: Session = Depends(get_db)):
 
 
 @app.get("/customers", response_model=List[CustomerOut])
-def list_customers(db: Session = Depends(get_db)):
-    customers = db.query(Customer).all()
+def list_customers(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
+    """Get paginated list of customers sorted by frustration score."""
+    customers = db.query(Customer).offset(skip).limit(limit).all()
     results = [_customer_to_out(c, db) for c in customers]
     results.sort(key=lambda x: x.current_frustration_score, reverse=True)
     return results

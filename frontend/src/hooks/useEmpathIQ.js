@@ -23,12 +23,20 @@ export function useEmpathIQ() {
   // ── API health check ──────────────────────────────────────────────
   const checkApi = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:8000/health')
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+      const res = await fetch(`${apiUrl}/health`)
       setApiOnline(res.ok)
     } catch {
       setApiOnline(false)
     }
   }, [])
+
+  // Start health check on mount
+  useEffect(() => {
+    checkApi()
+    const interval = setInterval(checkApi, 30000) // Check every 30 seconds
+    return () => clearInterval(interval)
+  }, [checkApi])
 
   // ── Load all customers ────────────────────────────────────────────
   const loadCustomers = useCallback(async () => {

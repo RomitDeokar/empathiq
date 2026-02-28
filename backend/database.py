@@ -10,7 +10,12 @@ from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'empathiq.db')}"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    pool_size=5,
+    max_overflow=10,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -20,7 +25,7 @@ class Customer(Base):
 
     id = Column(String, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    email = Column(String, nullable=False)
+    email = Column(String, nullable=False, unique=True, index=True)
     plan_tier = Column(String, default="standard")
     join_date = Column(DateTime, default=datetime.utcnow)
     avatar_color = Column(String, default="#5AC8FA")
@@ -44,8 +49,8 @@ class Interaction(Base):
     __tablename__ = "interactions"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    customer_id = Column(String, ForeignKey("customers.id", ondelete="CASCADE"))
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    customer_id = Column(String, ForeignKey("customers.id", ondelete="CASCADE"), index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     message = Column(Text, nullable=False)
 
     # ML outputs

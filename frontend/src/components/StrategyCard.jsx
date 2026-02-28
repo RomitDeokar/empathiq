@@ -220,7 +220,7 @@ function EmptyCard() {
   )
 }
 
-export function StrategyCard({ analysis }) {
+export const StrategyCard = React.memo(function StrategyCard({ analysis }) {
   if (!analysis) return <EmptyCard />
 
   const { emotion, sentiment, frustration, strategy } = analysis
@@ -410,4 +410,4 @@ export function StrategyCard({ analysis }) {
       </motion.div>
     </AnimatePresence>
   )
-}
+})
