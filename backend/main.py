@@ -25,6 +25,7 @@ from models.emotion_detector import detect_emotion
 from models.sentiment_scorer import get_sentiment_score
 from models.frustration_lstm import compute_frustration
 from models.strategy_engine import recommend_strategy
+from models.response_generator import generate_agent_suggestion, generate_chat_response
 
 app = FastAPI(
     title="EmpathIQ API",
@@ -55,8 +56,10 @@ def startup():
     print("[EmpathIQ] Pre-loading ML models...")
     from models.emotion_detector import _load_model as load_emotion
     from models.sentiment_scorer import _load_model as load_sentiment
+    from models.response_generator import _load_model as load_generator
     load_emotion()
     load_sentiment()
+    load_generator()
     print("[EmpathIQ] All models ready. Server is hot.")
 
 
@@ -98,9 +101,8 @@ def create_customer(req: CreateCustomerRequest, db: Session = Depends(get_db)):
 
 
 @app.get("/customers", response_model=List[CustomerOut])
-def list_customers(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
-    """Get paginated list of customers sorted by frustration score."""
-    customers = db.query(Customer).offset(skip).limit(limit).all()
+def list_customers(db: Session = Depends(get_db)):
+    customers = db.query(Customer).all()
     results = [_customer_to_out(c, db) for c in customers]
     results.sort(key=lambda x: x.current_frustration_score, reverse=True)
     return results
@@ -184,7 +186,7 @@ def analyze_message(req: AnalyzeRequest, db: Session = Depends(get_db)):
         flags=frustration["flags"],
         num_past_tickets=len(past_interactions),
         plan_tier=customer.plan_tier,
-        unresolved_count=frustration["unresolved_count"],
+        unresolved_count=frustration.get("unresolved_count", 0),
     )
 
     new_interaction = Interaction(
@@ -225,6 +227,150 @@ def analyze_message(req: AnalyzeRequest, db: Session = Depends(get_db)):
         strategy=strategy,
         timestamp=datetime.utcnow().isoformat(),
     )
+
+
+# ─── Generate Reply Endpoint ──────────────────────────────────────────────────
+
+@app.post("/generate-reply")
+def generate_reply(payload: dict, db: Session = Depends(get_db)):
+    """
+    Generate a suggested agent reply for a given customer message + context.
+    Body: {
+        customer_id, message, strategy_level, emotion_raw,
+        frustration_score, issue_category
+    }
+    """
+    customer_id = payload.get("customer_id")
+    message = payload.get("message", "")
+    strategy_level = payload.get("strategy_level", "standard")
+    emotion_raw = payload.get("emotion_raw", "neutral")
+    frustration_score = payload.get("frustration_score", 0.0)
+    issue_category = payload.get("issue_category", "general")
+
+    customer_name = "the customer"
+    num_tickets = 1
+    if customer_id:
+        customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        if customer:
+            customer_name = customer.name.split()[0]  # first name only
+            num_tickets = db.query(Interaction).filter(
+                Interaction.customer_id == customer_id
+            ).count()
+
+    result = generate_agent_suggestion(
+        customer_message=message,
+        strategy_level=strategy_level,
+        emotion_raw=emotion_raw,
+        frustration_score=frustration_score,
+        customer_name=customer_name,
+        num_tickets=num_tickets,
+        issue_category=issue_category,
+    )
+
+    return result
+
+
+# ─── Customer Chat Endpoint ───────────────────────────────────────────────────
+
+@app.post("/chat")
+def customer_chat(payload: dict, db: Session = Depends(get_db)):
+    """
+    Customer-facing chat endpoint.
+    Runs full analysis pipeline then generates a contextual reply.
+    Body: {
+        customer_id, message,
+        conversation_history: [{role, text}],
+        issue_category
+    }
+    """
+    customer_id = payload.get("customer_id")
+    message = payload.get("message", "")
+    conversation_history = payload.get("conversation_history", [])
+    issue_category = payload.get("issue_category", "general")
+
+    if not customer_id or not message:
+        raise HTTPException(status_code=400, detail="customer_id and message required")
+
+    customer = _get_customer_or_404(customer_id, db)
+
+    # Run full analysis pipeline so frustration score stays current
+    emotion = detect_emotion(message)
+    sentiment = get_sentiment_score(message)
+
+    past_interactions = (
+        db.query(Interaction)
+        .filter(Interaction.customer_id == customer_id)
+        .order_by(Interaction.timestamp.desc())
+        .all()
+    )
+
+    now = datetime.utcnow()
+    history_features = []
+    for interaction in past_interactions:
+        days_ago = max(0, (now - interaction.timestamp).days)
+        history_features.append({
+            "sentiment_score": interaction.sentiment_score or 0.0,
+            "emotion_weight": _get_emotion_weight(interaction.emotion_raw),
+            "resolved": interaction.resolved or False,
+            "issue_category": interaction.issue_category or "general",
+            "days_ago": days_ago,
+        })
+
+    frustration = compute_frustration(
+        history_features,
+        current_emotion_weight=emotion["score_weight"],
+        current_sentiment_score=sentiment["score"],
+    )
+
+    strategy = recommend_strategy(
+        frustration_score=frustration["frustration_score"],
+        emotion_raw=emotion["raw_emotion"],
+        trajectory=frustration["trajectory"],
+        churn_probability=frustration["churn_probability"],
+        flags=frustration["flags"],
+        num_past_tickets=len(past_interactions),
+        plan_tier=customer.plan_tier,
+        unresolved_count=frustration.get("unresolved_count", 0),
+    )
+
+    # Generate chat reply
+    chat_result = generate_chat_response(
+        customer_message=message,
+        conversation_history=conversation_history,
+        strategy_level=strategy["level"],
+        emotion_raw=emotion["raw_emotion"],
+        frustration_score=frustration["frustration_score"],
+    )
+
+    # Persist interaction
+    new_interaction = Interaction(
+        customer_id=customer_id,
+        message=message,
+        emotion_label=emotion["label"],
+        emotion_raw=emotion["raw_emotion"],
+        emotion_color=emotion["color"],
+        emotion_icon=emotion["icon"],
+        sentiment_score=sentiment["score"],
+        sentiment_label=sentiment["label"],
+        frustration_score=frustration["frustration_score"],
+        issue_category=issue_category,
+        resolved=False,
+        days_ago=0,
+    )
+    db.add(new_interaction)
+    customer.current_frustration_score = frustration["frustration_score"]
+    customer.current_churn_probability = frustration["churn_probability"]
+    db.commit()
+
+    return {
+        "reply": chat_result["reply"],
+        "method": chat_result["method"],
+        "emotion": emotion,
+        "sentiment": sentiment,
+        "frustration": frustration,
+        "strategy": strategy,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
 
 
 # ─── Simulate Endpoint ────────────────────────────────────────────────────────

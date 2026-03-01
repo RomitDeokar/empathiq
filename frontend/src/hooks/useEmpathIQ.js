@@ -14,6 +14,7 @@ export function useEmpathIQ() {
   const [selectedCustomer, setSelectedCustomer] = useState(null)
   const [history, setHistory] = useState([])
   const [latestAnalysis, setLatestAnalysis] = useState(null)
+  const [latestMessage, setLatestMessage] = useState(null)
   const [loading, setLoading] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [simulating, setSimulating] = useState(false)
@@ -23,20 +24,12 @@ export function useEmpathIQ() {
   // ── API health check ──────────────────────────────────────────────
   const checkApi = useCallback(async () => {
     try {
-      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-      const res = await fetch(`${apiUrl}/health`)
+      const res = await fetch('http://localhost:8000/health')
       setApiOnline(res.ok)
     } catch {
       setApiOnline(false)
     }
   }, [])
-
-  // Start health check on mount
-  useEffect(() => {
-    checkApi()
-    const interval = setInterval(checkApi, 30000) // Check every 30 seconds
-    return () => clearInterval(interval)
-  }, [checkApi])
 
   // ── Load all customers ────────────────────────────────────────────
   const loadCustomers = useCallback(async () => {
@@ -68,6 +61,7 @@ export function useEmpathIQ() {
     if (!selectedCustomer || !message.trim()) return
     setAnalyzing(true)
     setError(null)
+    setLatestMessage(message)
     try {
       const res = await analyzeMessage(selectedCustomer.id, message, issueCategory)
       const analysis = res.data
@@ -144,6 +138,10 @@ export function useEmpathIQ() {
 
       // Set analysis
       setLatestAnalysis(analysis)
+      // Set last message so AgentSuggestion can generate a reply
+      if (scenarioHistory.length > 0) {
+        setLatestMessage(scenarioHistory[scenarioHistory.length - 1].message)
+      }
 
     } catch (e) {
       setError(e.message || 'Simulation failed.')
@@ -204,7 +202,7 @@ export function useEmpathIQ() {
   }, [apiOnline]) // eslint-disable-line
 
   return {
-    customers, selectedCustomer, history, latestAnalysis,
+    customers, selectedCustomer, history, latestAnalysis, latestMessage,
     loading, analyzing, simulating, error, apiOnline,
     selectCustomer, sendMessage, runScenario,
     addCustomer, removeCustomer, toggleResolved,

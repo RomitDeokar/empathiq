@@ -1,33 +1,15 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '60000')
-
 const API = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: API_TIMEOUT,
+  baseURL: 'http://localhost:8000',
+  timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
 })
 
-API.interceptors.request.use((config) => {
-  config.metadata = { startTime: Date.now() }
-  return config
-})
-
 API.interceptors.response.use(
-  (res) => {
-    const duration = Date.now() - res.config.metadata.startTime
-    if (duration > 5000) {
-      console.warn(`[EmpathIQ] Slow request (${duration}ms): ${res.config.url}`)
-    }
-    return res
-  },
+  (res) => res,
   (err) => {
     const msg = err?.response?.data?.detail || err?.message || 'Unknown error'
-    const status = err?.response?.status
-    if (status >= 500) {
-      console.error(`[EmpathIQ] Server error (${status}): ${msg}`)
-    }
     return Promise.reject(new Error(msg))
   }
 )
@@ -61,5 +43,24 @@ export const runSimulation = (scenarioName) =>
 
 export const getScenarios = () =>
   API.get('/simulate/scenarios')
+
+// Chatbot endpoints
+export const customerChat = (customerId, message, conversationHistory = [], issueCategory = 'general') =>
+  API.post('/chat', {
+    customer_id: customerId,
+    message,
+    conversation_history: conversationHistory,
+    issue_category: issueCategory,
+  })
+
+export const generateAgentReply = (customerId, message, strategyLevel, emotionRaw, frustrationScore, issueCategory = 'general') =>
+  API.post('/generate-reply', {
+    customer_id: customerId,
+    message,
+    strategy_level: strategyLevel,
+    emotion_raw: emotionRaw,
+    frustration_score: frustrationScore,
+    issue_category: issueCategory,
+  })
 
 export default API

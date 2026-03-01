@@ -11,6 +11,8 @@ import { FrustrationChart }  from '../components/FrustrationChart'
 import { MessageInput }      from '../components/MessageInput'
 import { AddCustomerModal }  from '../components/AddCustomerModal'
 import { FrustrationBadge }  from '../components/FrustrationBadge'
+import { CustomerChat }      from '../components/CustomerChat'
+import { AgentSuggestion }   from '../components/AgentSuggestion'
 import { useEmpathIQ }       from '../hooks/useEmpathIQ'
 import clsx from 'clsx'
 
@@ -238,7 +240,7 @@ function ErrorBanner({ error, onDismiss }) {
 
 export default function Dashboard() {
   const {
-    customers, selectedCustomer, history, latestAnalysis,
+    customers, selectedCustomer, history, latestAnalysis, latestMessage,
     loading, analyzing, error, apiOnline,
     selectCustomer, sendMessage, addCustomer, removeCustomer,
     toggleResolved, loadCustomers, setError,
@@ -406,11 +408,22 @@ export default function Dashboard() {
               ) : null
             }
           />
-          <div className="flex-1 overflow-hidden p-3">
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
             <StrategyCard analysis={latestAnalysis} simulating={simulating} />
+            <AgentSuggestion
+              customerId={selectedCustomer?.id}
+              latestMessage={latestMessage}
+              analysis={latestAnalysis}
+            />
           </div>
         </div>
       </div>
+
+      {/* Customer-facing chat widget */}
+      <CustomerChat
+        customerId={selectedCustomer?.id}
+        customerName={selectedCustomer?.name}
+      />
 
       <AnimatePresence>
         {showAddModal && (
